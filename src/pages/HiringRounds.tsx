@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, Edit, Mail, Plus, Trash, User } from 'lucide-react';
+import { Calendar, Clock, Edit, Filter, Mail, Plus, Trash } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
@@ -107,6 +107,8 @@ const HiringRounds = () => {
     time: '',
     mode: 'Online'
   });
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,7 +134,8 @@ const HiringRounds = () => {
       ));
       toast({
         title: "Round Updated",
-        description: `${currentRound.name} has been updated successfully.`
+        description: `${currentRound.name} has been updated successfully.`,
+        variant: "default",
       });
     } else {
       // Add new round
@@ -145,7 +148,8 @@ const HiringRounds = () => {
       setRounds([...rounds, newRound]);
       toast({
         title: "Round Added",
-        description: `${currentRound.name} has been added to the hiring process.`
+        description: `${currentRound.name} has been added to the hiring process.`,
+        variant: "default",
       });
     }
     
@@ -177,9 +181,14 @@ const HiringRounds = () => {
   };
   
   const handleSendResults = (roundId: number) => {
+    const roundInfo = rounds.find(r => r.id === roundId);
+    const selectedStudents = roundInfo?.students.filter(s => s.status === 'selected').length || 0;
+    const totalStudents = roundInfo?.students.length || 0;
+    
     toast({
-      title: "Results Sent",
-      description: `The results for ${rounds.find(r => r.id === roundId)?.name} have been sent to the TPO.`
+      title: "Results Sent to TPO",
+      description: `The results for ${roundInfo?.name} (${selectedStudents} out of ${totalStudents} students selected) have been sent to the TPO.`,
+      variant: "default",
     });
   };
   
@@ -195,6 +204,65 @@ const HiringRounds = () => {
       }
       return round;
     }));
+  };
+  
+  const handleAddSelectedStudents = (currentRoundId: number) => {
+    const currentRoundIndex = rounds.findIndex(round => round.id === currentRoundId);
+    if (currentRoundIndex <= 0) return; // First round or invalid round
+    
+    const previousRound = rounds[currentRoundIndex - 1];
+    const selectedStudents = previousRound.students.filter(student => student.status === 'selected');
+    
+    if (selectedStudents.length === 0) {
+      toast({
+        title: "No Students to Add",
+        description: "There are no selected students from the previous round.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const currentRound = rounds[currentRoundIndex];
+    const currentStudentIds = new Set(currentRound.students.map(student => student.id));
+    
+    // Only add students that aren't already in the current round
+    const newStudents = selectedStudents.filter(student => !currentStudentIds.has(student.id))
+      .map(student => ({ ...student, status: 'pending' }));
+    
+    if (newStudents.length === 0) {
+      toast({
+        title: "Students Already Added",
+        description: "All selected students from the previous round are already in this round.",
+        variant: "default",
+      });
+      return;
+    }
+    
+    // Update the current round with new students
+    const updatedRounds = [...rounds];
+    updatedRounds[currentRoundIndex] = {
+      ...currentRound,
+      students: [...currentRound.students, ...newStudents]
+    };
+    
+    setRounds(updatedRounds);
+    
+    toast({
+      title: "Students Added",
+      description: `${newStudents.length} selected students from ${previousRound.name} have been added to ${currentRound.name}.`,
+      variant: "default",
+    });
+  };
+  
+  // Filter the students based on the search term and status filter
+  const getFilteredStudents = (students: any[]) => {
+    return students.filter(student => {
+      const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                           student.email.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      if (statusFilter === 'all') return matchesSearch;
+      return student.status === statusFilter && matchesSearch;
+    });
   };
   
   return (
@@ -306,8 +374,9 @@ const HiringRounds = () => {
                           <span>{round.time}</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <User className="h-4 w-4 text-gray-500" />
-                          <span>{round.mode}</span>
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                            {round.mode}
+                          </span>
                         </div>
                       </div>
                     </CardDescription>
@@ -334,6 +403,32 @@ const HiringRounds = () => {
                     )}
                   </div>
                   
+                  {/* Add search and filter controls */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="relative">
+                      <Input 
+                        placeholder="Search students..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Filter className="h-4 w-4 text-gray-500" />
+                      <Select value={statusFilter} onValueChange={setStatusFilter}>
+                        <SelectTrigger className="max-w-xs">
+                          <SelectValue placeholder="Filter by status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Students</SelectItem>
+                          <SelectItem value="selected">Selected</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  
                   {round.students.length > 0 ? (
                     <Table>
                       <TableHeader>
@@ -345,7 +440,7 @@ const HiringRounds = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {round.students.map(student => (
+                        {getFilteredStudents(round.students).map(student => (
                           <TableRow key={student.id}>
                             <TableCell>{student.name}</TableCell>
                             <TableCell>{student.email}</TableCell>
@@ -402,6 +497,12 @@ const HiringRounds = () => {
                         : "No students in this round yet."}
                     </div>
                   )}
+                  
+                  {getFilteredStudents(round.students).length === 0 && round.students.length > 0 && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      No students match the current filter criteria.
+                    </div>
+                  )}
                 </div>
               </CardContent>
               <CardFooter className="border-t pt-4 flex justify-between">
@@ -413,7 +514,10 @@ const HiringRounds = () => {
                       : "This round is in progress."}
                 </div>
                 {round.status === 'upcoming' && Number(activeRound) > 1 && (
-                  <Button variant="outline">
+                  <Button 
+                    variant="outline"
+                    onClick={() => handleAddSelectedStudents(round.id)}
+                  >
                     Add Selected Students from Previous Round
                   </Button>
                 )}

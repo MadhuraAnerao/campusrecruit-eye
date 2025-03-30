@@ -10,9 +10,16 @@ import {
 } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Download, Mail, FileSpreadsheet } from 'lucide-react';
+import { Search, Download, Mail, FileSpreadsheet, Filter } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Sample selected students data
 const sampleStudents = [
@@ -29,30 +36,79 @@ const sampleStudents = [
 const SelectedStudents = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [students, setStudents] = useState(sampleStudents);
+  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [positionFilter, setPositionFilter] = useState('all');
   const { toast } = useToast();
   
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
   
-  const filteredStudents = students.filter(student => 
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.position.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Calculate metrics
+  const calculateAveragePackage = () => {
+    const packages = students.map(student => parseFloat(student.package.split(' ')[0]));
+    const sum = packages.reduce((total, curr) => total + curr, 0);
+    return (sum / packages.length).toFixed(2);
+  };
+  
+  const calculateHighestPackage = () => {
+    const packages = students.map(student => parseFloat(student.package.split(' ')[0]));
+    return Math.max(...packages).toFixed(2);
+  };
+  
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = 
+      student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.position.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesDepartment = departmentFilter === 'all' || student.department === departmentFilter;
+    const matchesPosition = positionFilter === 'all' || student.position === positionFilter;
+    
+    return matchesSearch && matchesDepartment && matchesPosition;
+  });
+  
+  // Get unique departments for filter
+  const departments = ['all', ...new Set(students.map(student => student.department))];
+  
+  // Get unique positions for filter
+  const positions = ['all', ...new Set(students.map(student => student.position))];
   
   const handleDownload = () => {
+    // Create CSV content
+    const headers = ['Name', 'Email', 'Department', 'CGPA', 'Package', 'Position'];
+    const rows = filteredStudents.map(student => 
+      [student.name, student.email, student.department, student.cgpa, student.package, student.position]
+    );
+    
+    let csvContent = headers.join(',') + '\n';
+    rows.forEach(row => {
+      csvContent += row.join(',') + '\n';
+    });
+    
+    // Create a blob and download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'selected_students.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
     toast({
       title: "Report Downloaded",
-      description: "The selected students report has been downloaded as an Excel file."
+      description: "The selected students report has been downloaded as a CSV file.",
+      variant: "default",
     });
   };
   
   const handleSendToTPO = () => {
     toast({
       title: "Report Sent to TPO",
-      description: "The final selected students list has been sent to the TPO."
+      description: `The final selected students list (${filteredStudents.length} students) has been sent to the TPO with complete details.`,
+      variant: "default",
     });
   };
   
@@ -83,26 +139,58 @@ const SelectedStudents = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Average Package</CardDescription>
-            <CardTitle className="text-3xl">₹12.25 LPA</CardTitle>
+            <CardTitle className="text-3xl">₹{calculateAveragePackage()} LPA</CardTitle>
           </CardHeader>
         </Card>
         
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Highest Package</CardDescription>
-            <CardTitle className="text-3xl">₹15 LPA</CardTitle>
+            <CardTitle className="text-3xl">₹{calculateHighestPackage()} LPA</CardTitle>
           </CardHeader>
         </Card>
       </div>
       
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input 
-          placeholder="Search by name, email, department, or position..." 
-          className="pl-10"
-          value={searchTerm}
-          onChange={handleSearchChange}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="md:col-span-2 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input 
+            placeholder="Search by name, email, department, or position..." 
+            className="pl-10"
+            value={searchTerm}
+            onChange={handleSearchChange}
+          />
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Filter className="h-4 w-4 text-gray-500" />
+          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+            <SelectTrigger className="max-w-xs">
+              <SelectValue placeholder="Filter by department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              {departments.filter(d => d !== 'all').map(dept => (
+                <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Filter className="h-4 w-4 text-gray-500" />
+          <Select value={positionFilter} onValueChange={setPositionFilter}>
+            <SelectTrigger className="max-w-xs">
+              <SelectValue placeholder="Filter by position" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Positions</SelectItem>
+              {positions.filter(p => p !== 'all').map(position => (
+                <SelectItem key={position} value={position}>{position}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       
       <Card>
@@ -134,7 +222,7 @@ const SelectedStudents = () => {
                   <TableCell>{student.email}</TableCell>
                   <TableCell>{student.department}</TableCell>
                   <TableCell>{student.cgpa}</TableCell>
-                  <TableCell className="font-semibold">₹{student.package}</TableCell>
+                  <TableCell className="font-semibold">{student.package}</TableCell>
                   <TableCell>{student.position}</TableCell>
                 </TableRow>
               ))}

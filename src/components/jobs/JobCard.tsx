@@ -1,28 +1,33 @@
 
 import React from 'react';
-import { Clock, MapPin } from 'lucide-react';
+import { Clock, MapPin, Edit, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface JobCardProps {
+  id: number;
   title: string;
   company: string;
   location: string;
   postDate: string;
   description: string;
-  eligibility: boolean;
   salary: string;
   className?: string;
+  onEdit?: (id: number) => void;
+  onDelete?: (id: number) => void;
 }
 
 export function JobCard({
+  id,
   title,
   company,
   location,
   postDate,
   description,
-  eligibility,
   salary,
-  className
+  className,
+  onEdit,
+  onDelete
 }: JobCardProps) {
   return (
     <div className={cn("job-card", className)}>
@@ -43,10 +48,31 @@ export function JobCard({
       <p className="job-description">{description}</p>
       
       <div className="flex justify-between items-center">
-        <div className={`job-eligibility ${eligibility ? 'text-green-600' : 'text-red-500'}`}>
-          ELIGIBILITY: {eligibility ? 'YES' : 'NO'}
+        <div className="job-salary">₹{salary} LPA</div>
+        <div className="flex gap-2">
+          {onEdit && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onEdit(id)}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              <Edit className="h-3.5 w-3.5 mr-1" />
+              Edit
+            </Button>
+          )}
+          {onDelete && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onDelete(id)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" />
+              Delete
+            </Button>
+          )}
         </div>
-        <div className="job-salary">₹{salary}</div>
       </div>
     </div>
   );

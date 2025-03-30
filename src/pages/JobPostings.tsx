@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { JobCard } from '@/components/jobs/JobCard';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Search } from 'lucide-react';
+import { PlusCircle, Search, Filter } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { 
   Dialog, 
@@ -16,6 +16,13 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 // Sample job data
 const sampleJobs = [
@@ -26,8 +33,7 @@ const sampleJobs = [
     location: 'NAGPUR, INDIA',
     postDate: '7/10/2024',
     description: 'ANALYZE FINANCIAL DATA, PREPARE REPORTS, AND ASSIST IN INVESTMENT DECISIONS.',
-    eligibility: false,
-    salary: '80000'
+    salary: '8'
   },
   {
     id: 2,
@@ -36,8 +42,7 @@ const sampleJobs = [
     location: 'MUMBAI, INDIA',
     postDate: '28/9/2024',
     description: 'DEVELOP AND MAINTAIN SOFTWARE SOLUTIONS FOR BANKING OPERATIONS.',
-    eligibility: false,
-    salary: '95000'
+    salary: '9.5'
   },
   {
     id: 3,
@@ -46,8 +51,7 @@ const sampleJobs = [
     location: 'GURGAON',
     postDate: '2/10/2024',
     description: 'SUPPORT SENIOR ANALYSTS IN EVALUATING INVESTMENT OPPORTUNITIES.',
-    eligibility: false,
-    salary: '90000'
+    salary: '9'
   },
   {
     id: 4,
@@ -56,18 +60,16 @@ const sampleJobs = [
     location: 'DELHI',
     postDate: '20/9/2024',
     description: 'DEVELOP AND IMPLEMENT MARKETING STRATEGIES FOR CONSUMER PRODUCTS.',
-    eligibility: true,
-    salary: '75000'
+    salary: '7.5'
   },
   {
     id: 5,
-    title: 'DATA ANALYTICS',
+    title: 'DATA ANALYST',
     company: 'ACCENTURE',
     location: 'MUMBAI, INDIA',
     postDate: '3/10/2024',
     description: 'ANALYZE BUSINESS DATA AND PROVIDE INSIGHTS FOR STRATEGIC DECISIONS.',
-    eligibility: true,
-    salary: '85000'
+    salary: '8.5'
   },
   {
     id: 6,
@@ -76,8 +78,7 @@ const sampleJobs = [
     location: 'BANGALORE, INDIA',
     postDate: '25/9/2024',
     description: 'PROVIDE IT CONSULTING SERVICES TO CLIENTS ACROSS VARIOUS INDUSTRIES.',
-    eligibility: true,
-    salary: '82000'
+    salary: '8.2'
   }
 ];
 
@@ -85,26 +86,42 @@ const JobPostings = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [jobs, setJobs] = useState(sampleJobs);
   const [open, setOpen] = useState(false);
+  const [filterJobType, setFilterJobType] = useState('all');
   const { toast } = useToast();
   
   const [newJob, setNewJob] = useState({
+    id: 0,
     title: '',
     company: '',
     location: '',
     description: '',
-    eligibility: true,
     salary: ''
   });
+  
+  const [isEditMode, setIsEditMode] = useState(false);
   
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
   };
   
-  const filteredJobs = jobs.filter(job => 
-    job.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    job.location.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredJobs = jobs.filter(job => {
+    const matchesSearch = 
+      job.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      job.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.location.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (filterJobType === 'all') return matchesSearch;
+    
+    const normalizedTitle = job.title.toLowerCase();
+    
+    if (filterJobType === 'software' && normalizedTitle.includes('software')) return matchesSearch;
+    if (filterJobType === 'data' && (normalizedTitle.includes('data') || normalizedTitle.includes('analyst'))) return matchesSearch;
+    if (filterJobType === 'finance' && (normalizedTitle.includes('finance') || normalizedTitle.includes('financial') || normalizedTitle.includes('investment'))) return matchesSearch;
+    if (filterJobType === 'marketing' && normalizedTitle.includes('marketing')) return matchesSearch;
+    if (filterJobType === 'it' && (normalizedTitle.includes('it') || normalizedTitle.includes('consultant'))) return matchesSearch;
+    
+    return false;
+  });
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -112,29 +129,62 @@ const JobPostings = () => {
   };
   
   const handleSubmit = () => {
-    const jobToAdd = {
-      ...newJob,
-      id: jobs.length + 1,
-      postDate: new Date().toLocaleDateString('en-GB')
-    };
+    if (isEditMode) {
+      // Update existing job
+      setJobs(jobs.map(job => job.id === newJob.id ? newJob : job));
+      toast({
+        title: "Job Updated Successfully",
+        description: "Your job has been updated and notifications sent to TPO",
+      });
+    } else {
+      // Add new job
+      const jobToAdd = {
+        ...newJob,
+        id: jobs.length > 0 ? Math.max(...jobs.map(job => job.id)) + 1 : 1,
+        postDate: new Date().toLocaleDateString('en-GB')
+      };
+      
+      setJobs([jobToAdd, ...jobs]);
+      toast({
+        title: "Job Posted Successfully",
+        description: "Your job has been posted and notifications sent to TPO",
+      });
+    }
     
-    setJobs([jobToAdd, ...jobs]);
     setOpen(false);
-    
-    toast({
-      title: "Job Posted Successfully",
-      description: "Your job has been posted and notifications sent to TPO",
-    });
     
     // Reset form
     setNewJob({
+      id: 0,
       title: '',
       company: '',
       location: '',
       description: '',
-      eligibility: true,
       salary: ''
     });
+    
+    setIsEditMode(false);
+  };
+  
+  const handleEditJob = (id: number) => {
+    const jobToEdit = jobs.find(job => job.id === id);
+    if (jobToEdit) {
+      setNewJob(jobToEdit);
+      setIsEditMode(true);
+      setOpen(true);
+    }
+  };
+  
+  const handleDeleteJob = (id: number) => {
+    setJobs(jobs.filter(job => job.id !== id));
+    toast({
+      title: "Job Deleted",
+      description: "The job posting has been removed successfully.",
+    });
+  };
+  
+  const handleFilterChange = (value: string) => {
+    setFilterJobType(value);
   };
   
   return (
@@ -144,16 +194,28 @@ const JobPostings = () => {
         
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button variant="default" className="flex items-center gap-2">
+            <Button variant="default" className="flex items-center gap-2" onClick={() => {
+              setIsEditMode(false);
+              setNewJob({
+                id: 0,
+                title: '',
+                company: '',
+                location: '',
+                description: '',
+                salary: ''
+              });
+            }}>
               <PlusCircle className="h-4 w-4" />
               Post New Job
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
-              <DialogTitle>Post New Job</DialogTitle>
+              <DialogTitle>{isEditMode ? 'Edit Job Posting' : 'Post New Job'}</DialogTitle>
               <DialogDescription>
-                Create a new job posting. This will be visible to students and TPO.
+                {isEditMode 
+                  ? 'Update the job posting details. This will notify the TPO of the changes.'
+                  : 'Create a new job posting. This will be visible to students and TPO.'}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -191,14 +253,14 @@ const JobPostings = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="salary">Salary (₹)</Label>
+                  <Label htmlFor="salary">Salary (LPA)</Label>
                   <Input 
                     id="salary" 
                     name="salary" 
                     type="number" 
                     value={newJob.salary} 
                     onChange={handleInputChange} 
-                    placeholder="e.g. 80000" 
+                    placeholder="e.g. 8" 
                   />
                 </div>
               </div>
@@ -216,33 +278,54 @@ const JobPostings = () => {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button onClick={handleSubmit}>Post Job</Button>
+              <Button onClick={handleSubmit}>{isEditMode ? 'Update' : 'Post'} Job</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
       
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input 
-          placeholder="Search jobs by title, company, or location..." 
-          className="pl-10"
-          value={searchTerm}
-          onChange={handleSearchChange}
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input 
+            placeholder="Search jobs by title, company, or location..." 
+            className="pl-10"
+            value={searchTerm}
+            onChange={handleSearchChange}
+          />
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Filter className="h-4 w-4 text-gray-500" />
+          <Select value={filterJobType} onValueChange={handleFilterChange}>
+            <SelectTrigger className="max-w-xs">
+              <SelectValue placeholder="Filter by job type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Jobs</SelectItem>
+              <SelectItem value="software">Software Engineering</SelectItem>
+              <SelectItem value="data">Data Analysis</SelectItem>
+              <SelectItem value="finance">Finance</SelectItem>
+              <SelectItem value="marketing">Marketing</SelectItem>
+              <SelectItem value="it">IT & Consulting</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredJobs.map(job => (
           <JobCard 
             key={job.id}
+            id={job.id}
             title={job.title} 
             company={job.company}
             location={job.location}
             postDate={job.postDate}
             description={job.description}
-            eligibility={job.eligibility}
             salary={job.salary}
+            onEdit={handleEditJob}
+            onDelete={handleDeleteJob}
           />
         ))}
       </div>

@@ -15,11 +15,16 @@ import {
   TabsTrigger 
 } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
-import { Edit, Copy, Check, Send } from 'lucide-react';
+import { Edit, Copy, Check, Send, Info, AlertCircle } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 
 const EmailTemplates = () => {
   const { toast } = useToast();
@@ -108,9 +113,39 @@ Best Regards,
   };
   
   const handleSendPreview = (template: keyof typeof templates) => {
+    // In a real application, this would send an actual preview email with filled data
+    // For now, we'll just show a toast message
+    
+    const previewData = {
+      jobName: "Software Engineer",
+      companyName: "Accenture",
+      date: "2024-11-15",
+      location: "Mumbai, India",
+      roundName: "Technical Interview",
+      dateTime: "2024-10-25 11:00",
+      mode: "Online",
+      totalSelected: "5",
+      packageDetails: "12 LPA"
+    };
+    
+    // Show filled template preview
+    let filledBody = templates[template].body
+      .replace(/\[Job Name\]/g, previewData.jobName)
+      .replace(/\[Job Title\]/g, previewData.jobName)
+      .replace(/\[Company Name\]/g, previewData.companyName)
+      .replace(/\[Date\]/g, previewData.date)
+      .replace(/\[Job Location\]/g, previewData.location)
+      .replace(/\[Round Name\]/g, previewData.roundName)
+      .replace(/\[Date & Time\]/g, previewData.dateTime)
+      .replace(/\[Mode\]/g, previewData.mode)
+      .replace(/\[Number of Students\]/g, previewData.totalSelected)
+      .replace(/\[Package Details\]/g, previewData.packageDetails)
+      .replace(/\[Portal Link\]/g, "https://example.com/portal");
+    
     toast({
       title: "Preview Email Sent",
-      description: "A preview of the email template has been sent to your account."
+      description: "A preview of the email template has been sent to your account with actual data.",
+      variant: "default",
     });
   };
   
@@ -146,11 +181,19 @@ Best Regards,
         <h1 className="text-3xl font-bold text-gray-800">Email Templates</h1>
       </div>
       
+      <Alert variant="info">
+        <Info className="h-4 w-4" />
+        <AlertTitle>How Email Templates Work</AlertTitle>
+        <AlertDescription>
+          These templates are used to automatically send emails to the Training & Placement Officer (TPO) at various stages of the recruitment process. The placeholders (in [brackets]) are filled with actual data before sending. When you click "Send Preview," a test email is sent to your account with example data.
+        </AlertDescription>
+      </Alert>
+      
       <Card>
         <CardHeader>
           <CardTitle>TPO Notification Templates</CardTitle>
           <CardDescription>
-            These email templates are used to keep the Training & Placement Officer (TPO) informed about the recruitment process.
+            These email templates are used to keep the Training & Placement Officer (TPO) informed about the recruitment process. Edit them to match your company's communication style.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -167,7 +210,7 @@ Best Regards,
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle>Job Posting Notification</CardTitle>
-                      <CardDescription>Sent to TPO when a new job is posted</CardDescription>
+                      <CardDescription>Automatically sent to TPO when a new job is posted</CardDescription>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="icon" onClick={() => handleCopy(templates.jobPosting.body)}>
@@ -197,7 +240,7 @@ Best Regards,
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle>Round Completion Notification</CardTitle>
-                      <CardDescription>Sent to TPO after each hiring round is completed</CardDescription>
+                      <CardDescription>Automatically sent to TPO after each hiring round is completed</CardDescription>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="icon" onClick={() => handleCopy(templates.roundCompletion.body)}>
@@ -227,7 +270,7 @@ Best Regards,
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle>Final Selection Notification</CardTitle>
-                      <CardDescription>Sent to TPO after the final selection is made</CardDescription>
+                      <CardDescription>Automatically sent to TPO after the final selection is made</CardDescription>
                     </div>
                     <div className="flex gap-2">
                       <Button variant="outline" size="icon" onClick={() => handleCopy(templates.finalSelection.body)}>
